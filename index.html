@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Basic Bank</title>
+</head>
+<body>
+
+  <div class="container">
+      <div class="menu-bar">
+          <h1>Basic Bank</h1>
+          <button id="loginBtn">Login</button>
+      </div>
+      <div class="info-box">
+          <h2>Bank Details</h2>
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse vel mauris vitae nunc.</p>
+      </div>
+  </div>
+
+  <div class="login-form-container" id="loginFormContainer">
+      <div class="login-form">
+          <span class="close" onclick="closeLoginForm()">&times;</span>
+          <h2>Login</h2>
+          <form id="loginForm">
+              <label for="username">Username:</label>
+              <input type="text" id="username" name="username" required>
+
+              <label for="password">Password:</label>
+              <input type="password" id="password" name="password" required>
+
+              <button type="button" onclick="login()">Login</button>
+          </form>
+      </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
