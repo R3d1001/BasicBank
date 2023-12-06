@@ -330,3 +330,12 @@ INSERT INTO Accounts (
     1,
     1
 );
+
+insert into Cust_Login_Info (
+    Email,
+    Login_Password
+) values (
+'h.tariq@example.com',
+'user'
+);
+commit;
