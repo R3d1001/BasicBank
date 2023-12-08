@@ -760,7 +760,10 @@ INSERT INTO Transfer_Number (
     2
 );
 commit;
-
+set serveroutput on;
+set autocommit on;
 select * from cust_login_info;
 select * from accounts;
 select * from customers;
+
+select * from transfers;

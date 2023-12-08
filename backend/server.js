@@ -20,6 +20,332 @@ const dbConfig = {
     connectString: 'localhost:1521',
 };
 
+
+
+
+
+app.post('/make-transaction', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId, amount,targetAccount } = req.body;
+        console.log(req.body);
+        // Validate the incoming data
+        if (!userId|| !targetAccount  || !amount || isNaN(amount) || amount <= 0) {
+            res.status(400).json({ error: 'Invalid Transaction request.' });
+            return;
+        }
+        let connection;
+
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+
+            // Retrieve the current balance from the database
+            const result = await connection.execute(
+                `SELECT balance FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+            console.log("Current balance: "+String(result.rows[0]));
+            if (result.rows.length === 0) {
+                res.status(404).json({ error: 'User not found.' });
+                return;
+            }
+            const currentBalance = Number(result.rows[0]);
+            console.log("Amount to send: "+String(amount));
+            if(currentBalance-Number(amount)<0){
+                res.json({ success: true, message: 'Transfer failed. Not enough Balance' });
+            }
+            else{
+                const acc = await connection.execute(
+                    `SELECT account_no FROM accounts WHERE account_no = :targetAccount`,
+                    { targetAccount }
+                );
+                console.log("Target account: "+String(acc.rows[0]));
+                if (acc.rows.length === 0) {
+                    res.status(404).json({ error: 'Account not found.' });
+                    return;
+                }
+                //reduce the senders balance
+                await connection.execute(
+                    `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
+                    { newBalance: currentBalance - Number(amount), userId }
+                );
+                console.log("New Balance: "+String(currentBalance - Number(amount)));
+                //get the recievers current balance
+                const res2 = await connection.execute(
+                    `SELECT balance FROM accounts WHERE account_no = :targetAccount`,
+                    { targetAccount }
+                );
+                const currentBalanceReciever = Number(res2.rows[0]);
+                //increase the recievers balance
+                console.log("Reciever current Balance: "+String(currentBalanceReciever));
+                await connection.execute(
+                    `UPDATE accounts SET balance = :newBalance WHERE account_no = :targetAccount`,
+                    { newBalance: currentBalanceReciever + Number(amount), targetAccount }
+                );
+                console.log("Reciever New Balance: "+String(currentBalanceReciever + Number(amount)));
+                //get the current users account id
+                const useracc = await connection.execute(
+                    `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+                    { userId }
+                );
+                console.log("Current user acc: "+String(useracc.rows[0]));
+                //add the current transaction to the transaction history
+                send_account_no=Number(useracc.rows[0]);
+                dest_account_no=Number(acc.rows[0]);
+                await connection.execute(
+                    `INSERT INTO transfers (send_account_no, dest_account_no, amount) VALUES (:send_account_no, :dest_account_no, :amount)`,
+                    { send_account_no, dest_account_no, amount }
+                );
+                connection.execute(`commit`);
+                const mes="Transfer Successful. Remaining balance: "+String(currentBalance - Number(amount))
+                +"\nSent to account number "+String(dest_account_no);
+                console.log(mes);
+                res.json({ success: true, message: mes });
+            }
+
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Error processing deposit:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+
+app.post('/withdraw', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId, amount } = req.body;
+        console.log(req.body);
+
+        // Validate the incoming data
+        if (!userId || !amount || isNaN(amount) || amount <= 0) {
+            res.status(400).json({ error: 'Invalid withdraw request.' });
+            return;
+        }
+
+        let connection;
+
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+
+            // Retrieve the current balance from the database
+            const result = await connection.execute(
+                `SELECT balance FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+
+            if (result.rows.length === 0) {
+                res.status(404).json({ error: 'User not found.' });
+                return;
+            }
+
+            const currentBalance = Number(result.rows[0]);
+            console.log(currentBalance);
+            if(currentBalance-Number(amount)<0){
+                res.json({ success: true, message: 'Withdrawal failed. Not enough Balance' });
+            }
+            else{
+                // Update the balance in the database
+                await connection.execute(
+                    `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
+                    { newBalance: currentBalance - Number(amount), userId }
+                );
+                //console.log('Current Balance:', currentBalance);
+                //console.log('Amount:', amount);
+                connection.execute(`commit`);
+                //console.log(currentBalance - Number(amount));
+                const mes="Withdrawal Successful. Remaining balance: "+String(currentBalance - Number(amount));
+                console.log(mes);
+                res.json({ success: true, message: mes });
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+        /*
+        // Perform the deposit logic (this is a placeholder, update as needed)
+        // You might want to save the deposit in your database, update user balance, etc.
+
+        // Assuming a successful deposit for demonstration purposes
+        res.json({ success: true, message: 'Deposit successful.' });
+        */
+    } catch (error) {
+        console.error('Error processing deposit:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+app.post('/deposit', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId, amount } = req.body;
+        console.log(req.body);
+
+        // Validate the incoming data
+        if (!userId || !amount || isNaN(amount) || amount <= 0) {
+            res.status(400).json({ error: 'Invalid deposit request.' });
+            return;
+        }
+
+        let connection;
+
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+
+            // Retrieve the current balance from the database
+            const result = await connection.execute(
+                `SELECT balance FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+
+            if (result.rows.length === 0) {
+                res.status(404).json({ error: 'User not found.' });
+                return;
+            }
+
+            const currentBalance = Number(result.rows[0]);
+            console.log(currentBalance);
+            // Update the balance in the database
+            await connection.execute(
+                `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
+                { newBalance: currentBalance + Number(amount), userId }
+            );
+            console.log('Current Balance:', currentBalance);
+            console.log('Amount:', amount);
+            connection.execute(`commit`);
+            console.log(currentBalance + Number(amount));
+            const mes="Deposit Successful. Remaining balance: "+String(currentBalance + Number(amount));
+            console.log(mes);
+            res.json({ success: true, message: mes });
+
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+        /*
+        // Perform the deposit logic (this is a placeholder, update as needed)
+        // You might want to save the deposit in your database, update user balance, etc.
+
+        // Assuming a successful deposit for demonstration purposes
+        res.json({ success: true, message: 'Deposit successful.' });
+        */
+    } catch (error) {
+        console.error('Error processing deposit:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+app.post('/updateProfile', async (req, res) => {
+    try {
+        const userId = req.body.userId; // Assuming userId is included in the request body
+        const firstName = req.body.firstName;
+        const middleName = req.body.middleName;
+        const lastName = req.body.lastName;
+        const nationality = req.body.nationality;
+        const street = req.body.street;
+        const city = req.body.city;
+        const country = req.body.country;
+        const phoneNo = req.body.phoneNo;
+        // Add more variables for other profile attributes
+        console.log(req.body);
+        // Validate the incoming data
+        /*
+        if (!userId || !firstName || !lastName) {
+            res.status(400).json({ error: 'Invalid request. userId, firstName, and lastName are required.' });
+            return;
+        }
+        */
+
+        // Establish a database connection
+        let connection;
+
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+
+            // Update the profile information in the database
+            const result = await connection.execute(
+                `UPDATE customers
+                 SET first_name = :firstName,
+                     middle_name = :middleName,
+                     last_name = :lastName,
+                     nationality = :nationality,
+                     addr_street = :street,
+                     addr_city = :city,
+                     addr_country = :country,
+                     phone_No = :phoneNo
+                 WHERE customer_no = :userId`,
+                {
+                    userId,
+                    firstName,
+                    middleName,
+                    lastName,
+                    nationality,
+                    street,
+                    city,
+                    country,
+                    phoneNo
+                }
+            );
+            connection.execute(`commit`);
+            // Check if the update was successful
+            if (result.rowsAffected > 0) {
+                res.json({ success: true, message: 'Profile updated successfully.' });
+            } else {
+                res.status(404).json({ error: 'Profile not found or no changes made.' });
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+
+
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -130,18 +456,13 @@ app.get('/getProfile', async (req, res) => {
                     first_name,
                     middle_name,
                     last_name,
-                    date_of_birth,
-                    age,
-                    gender,
                     nationality,
-                    cnic,
                     addr_street,
                     addr_city,
                     addr_country,
-                    phone_number,
-                    email
-                 FROM profiles
-                 WHERE user_id = :userId`,
+                    phone_no
+                 FROM customers
+                 WHERE customer_no = :userId`,
                 { userId }
                 //,{ outFormat: oracledb.OUT_FORMAT_OBJECT }
             );
