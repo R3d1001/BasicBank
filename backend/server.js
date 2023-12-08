@@ -21,7 +21,50 @@ const dbConfig = {
 };
 
 
+app.get('/transaction-history', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId } = req.query;
+        console.log(req.body);
+        // Validate the incoming data
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid Transaction request.' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            const acc = await connection.execute(
+                `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No accounts for this customer.' });
+                return;
+            }
+            console.log("Target accounts: "+String(acc.rows[0]));
+            acc_id=Number(acc.rows[0]);
+            const transfer_list = await connection.execute(
+                `SELECT * FROM transfers WHERE send_account_no = :acc_id OR dest_account_no = :acc_id`,
+                { acc_id }
+            );
+            console.log(transfer_list.rows[4]);
+            res.json(transfer_list.rows);
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
 
+    } catch (error) {
+        console.error('Error processing deposit:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 
 app.post('/make-transaction', async (req, res) => {
