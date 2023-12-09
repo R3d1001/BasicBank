@@ -41,11 +41,28 @@
             </div>
             <!-- Add similar boxes for other pages -->
         </div>
+
         <div class="page-content">
-            <h2>Make a Loan</h2>
-            <!-- Add the form or content for making a transaction -->
-            <p>Loan form goes here...</p>
+            <div class="loan-form">
+                <h2>Make a Loan</h2>
+                <form id="loanForm">
+                    <label for="loanAmount">Loan Amount:</label>
+                    <input type="number" id="loanAmount" required />
+
+                    <label for="interestRate"></label>
+                    <div id="interestRateDisplay"></div>
+
+                    <button type="submit">Submit Loan Application</button>
+                </form>
+            </div>
+
+            <div class="loan-history">
+                <h2>Loan History</h2>
+                <button id="getLoansBtn">Get Current Loans</button>
+                <ul id="loanList"></ul>
+            </div>
         </div>
+
     </div>
 </div>
 

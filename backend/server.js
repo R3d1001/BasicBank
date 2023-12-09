@@ -21,6 +21,242 @@ const dbConfig = {
 };
 
 
+
+
+
+// Endpoint to get credit card info
+app.get('/getCreditCard', async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        // Perform the logic to fetch credit card info from the database
+        const connection = await oracledb.getConnection(dbConfig);
+        const acc = await connection.execute(
+            `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+            { userId }
+        );
+        if (acc.rows.length === 0) {
+            res.status(404).json({ error: 'No accounts for this customer.' });
+            return;
+        }
+        acc_id=Number(acc.rows[0]);
+        const result = await connection.execute(
+            `SELECT card_no, cardholder_name, credit_for_spending, daily_transaction_limit, account_no, card_status
+            FROM credit_cards
+            WHERE account_no = :acc_id`,
+            [acc_id]
+        );
+
+        if (result.rows.length > 0) {
+            const creditCardInfo = result.rows[0];
+            console.log(result.rows[0]);
+            res.json(creditCardInfo);
+        } else {
+            res.json({}); // Empty response if no credit card info found
+        }
+
+    } catch (error) {
+      console.error('Error fetching credit card info:', error.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Endpoint to get debit card info
+app.get('/getDebitCard', async (req, res) => {
+try {
+    const { userId } = req.query;
+
+    // Perform the logic to fetch debit card info from the database
+    const connection = await oracledb.getConnection(dbConfig);
+    const acc = await connection.execute(
+        `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+        { userId }
+    );
+    if (acc.rows.length === 0) {
+        res.status(404).json({ error: 'No accounts for this customer.' });
+        return;
+    }
+    acc_id=Number(acc.rows[0]);
+    const result = await connection.execute(
+    `SELECT card_no, cardholder_name, daily_transaction_limit, account_no, card_status
+        FROM debit_cards
+        WHERE account_no = :acc_id`,
+    [acc_id]
+    );
+
+    if (result.rows.length > 0) {
+        const debitCardInfo = result.rows[0];
+        console.log(result.rows[0]);
+        res.json(debitCardInfo);
+    } else {
+        res.json({}); // Empty response if no debit card info found
+    }
+
+} catch (error) {
+    console.error('Error fetching debit card info:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+}
+});
+
+
+
+
+
+
+
+
+// Get interest rate for loans
+app.post('/interestRate', async (req, res) => {
+    try {
+        const { userId } = req.query;
+        console.log(req.body);
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid Loan Userid.' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            const acc = await connection.execute(
+                `SELECT interest_rate FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No accounts for this customer.' });
+                return;
+            }
+            const interestRate=acc.rows[0];
+            const mes=String(interestRate);
+            console.log(mes);
+            res.json({ success: true, message: mes });
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Error fetching interest rate:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+// Submit loan application
+app.post('/loans', async (req, res) => {
+try {
+    const { userId, loanAmount } = req.body;
+    console.log(userId);
+    console.log(loanAmount);
+    if (!userId||!loanAmount||loanAmount<=0) {
+        res.status(400).json({ error: 'Invalid Loan request' });
+        return;
+    }
+    let connection;
+    try {
+        //get the account id of the customer
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `SELECT account_no,interest_rate FROM accounts WHERE customer_no = :userId`,
+            { userId }
+        );
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'No accounts for this customer.' });
+            return;
+        }
+        //console.log("Target accounts: "+String(acc.rows[0]));
+        //acc_id=Number(acc.rows[0]);
+
+        const rowData = result.rows[0];
+            const acc_id = rowData[0]; // Access the values by index
+            const interestRate = rowData[1];
+        //get the interest rate for this account
+
+
+        //add the loan into pending request
+
+        await connection.execute(
+            `INSERT INTO Loans (loan_rate, initial_amount, account_no) VALUES (:interestRate, :acc_id, :loanAmount)`,
+            { interestRate, acc_id, loanAmount }
+        );
+
+        const mes="Sucessfully applied for a loan of "+ String(loanAmount)+ "for your account id "+String(acc_id)+" at a rate of "+String(interestRate);
+        console.log(mes);
+        res.json({ success: true, message: mes });
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (err) {
+                console.error('Error closing connection:', err.message);
+            }
+        }
+    }
+    // Implement your logic to insert the loan application into the database
+    // You can also perform additional validation and business logic here
+
+    // Placeholder response, modify as needed
+    res.json({ message: 'Loan application submitted successfully' });
+} catch (error) {
+    console.error('Error submitting loan application:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+}
+});
+
+// Get current loans for a user
+app.post('/getloans', async (req, res) => {
+try {
+    const { userId } = req.body;
+    if (!userId) {
+        res.status(400).json({ error: 'Invalid userid for loans' });
+        return;
+    }
+    let connection;
+    try {
+        //get the account id of the customer
+        connection = await oracledb.getConnection(dbConfig);
+        const acc = await connection.execute(
+            `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+            { userId }
+        );
+        if (acc.rows.length === 0) {
+            res.status(404).json({ error: 'No accounts for this customer.' });
+            return;
+        }
+        console.log("Target accounts: "+String(acc.rows[0]));
+        acc_id=Number(acc.rows[0]);
+        const loan_list = await connection.execute(
+            `SELECT * FROM loans WHERE account_no = :acc_id`,
+            { acc_id }
+        );
+        console.log(loan_list.rows[0]);
+        res.json(loan_list.rows);
+    } finally {
+        if (connection) {
+            try {
+                await connection.close();
+            } catch (err) {
+                console.error('Error closing connection:', err.message);
+            }
+        }
+    }
+    // Implement your logic to fetch current loans for the user from the database
+    // You can perform a SELECT query based on the userId
+
+} catch (error) {
+    console.error('Error fetching current loans:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+}
+});
+
+
+
+
+
+
 app.get('/transaction-history', async (req, res) => {
     try {
         // Extract data from the request body

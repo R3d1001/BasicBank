@@ -81,7 +81,7 @@ CREATE TABLE Loans (
     Outstanding_Balance DECIMAL,
     Next_Payable DATE,
     Next_Payable_Amount DECIMAL,
-    Account_No NUMBER REFERENCES Accounts(Account_No) UNIQUE,
+    Account_No NUMBER REFERENCES Accounts(Account_No) unique,
     Loan_Status NUMBER REFERENCES Status_Info(Status_Code)
 );
 CREATE TABLE Emp_Login_Info (
@@ -764,6 +764,60 @@ set serveroutput on;
 set autocommit on;
 select * from cust_login_info;
 select * from accounts;
-select * from customers;
-
+select * from customers;    
+select * from loans;
 select * from transfers;
+select * from credit_cards;
+select * from debit_cards;
+SELECT * FROM transfers WHERE send_account_no = 1 OR dest_account_no = 1;
+
+INSERT INTO Transfers (
+    Transaction_No,
+    Send_Account_No,
+    Dest_Account_No,
+    T_Date,
+    T_Time,
+    Amount,
+    Transaction_Status
+) VALUES (
+    20319,
+    1,
+    3,
+    TO_DATE('2022-06-20', 'YYYY-MM-DD'),
+    TO_TIMESTAMP('2022-06-20 14:45:00', 'YYYY-MM-DD HH24:MI:SS'),
+    1500.00,
+    1
+);
+
+INSERT INTO Loans (
+    Loan_Rate,
+    Date_Of_Loan,
+    Initial_Amount,
+    Outstanding_Balance,
+    Next_Payable,
+    Next_Payable_Amount,
+    Account_No,
+    Loan_Status
+) VALUES (
+    0.2,
+    TO_DATE('2022-03-01', 'YYYY-MM-DD'),
+    5000.00,
+    4500.00,
+    TO_DATE('2022-04-01', 'YYYY-MM-DD'),
+    1500.00,
+    1,
+    1
+);
+
+SELECT CONSTRAINT_NAME
+FROM USER_CONS_COLUMNS
+WHERE TABLE_NAME = 'LOANS' AND COLUMN_NAME = 'ACCOUNT_NO';
+
+ALTER TABLE Loans
+DROP CONSTRAINT SYS_C008451;
+ALTER TABLE Loans
+DROP CONSTRAINT SYS_C008452;
+ALTER TABLE Loans
+ADD CONSTRAINT SYS_C008452 FOREIGN KEY (Account_No) REFERENCES Accounts(Account_No);
+
+commit;
