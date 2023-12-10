@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Admin Panel - Basic Bank</title>
+</head>
+<body>
+
+<div class="container">
+    <div class="menu-bar">
+        <h1><a href="../index.html">Admin Panel</a></h1>
+        <button id="logoutBtn">Logout</button>
+    </div>
+    <div class="content">
+        <div class="sidebar">
+            <div class="box">
+                <a href="../loans">Loans</a>
+            </div>
+            <div class="box">
+                <a href="../transaction-history">Transaction History</a>
+            </div>
+            <div class="box">
+                <a href="../withdrawals">Withdrawals</a>
+            </div>
+            <div class="box">
+                <a href="../deposits">Deposits</a>
+            </div>
+            <!-- Add similar boxes for other admin pages -->
+        </div>
+
+        <div class="page-content">
+            <div class="loan-form">
+                <h2>Approve a Loan</h2>
+                <form id="loanForm">
+                    <label for="loanAmount">Loan id:</label>
+                    <input type="number" id="loanAmount" required />
+
+                    <button type="submit">Approve Loan</button>
+                </form>
+            </div>
+
+            <div class="loan-history">
+                <h2>Loan History</h2>
+                <button id="getLoansBtn">Get All Loans</button>
+                <ul id="loanList"></ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
