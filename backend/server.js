@@ -24,6 +24,431 @@ const dbConfig = {
 
 
 
+// get all loans
+app.post('/cancelDebit', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid employeeid for loans' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No accounts for this customer.' });
+                return;
+            }
+            acc_id=Number(acc.rows[0]);
+            const result = await connection.execute(
+                `SELECT card_no
+                FROM Debit_Cards
+                WHERE account_no = :acc_id`,
+                [acc_id]
+            );
+            const card_num=Number(result.rows[0]);
+            //approve the loan
+            await connection.execute(
+                `BEGIN
+                    DeleteDebitCard(:card_num);
+                END;`,
+                {
+                    card_num:card_num
+                }
+            );
+            const mes="Sucessfully deleted credit card";
+            console.log(mes);
+            connection.execute(`commit`);
+            res.json({ success: true, message: mes });
+
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+        // Implement your logic to fetch current loans for the user from the database
+        // You can perform a SELECT query based on the userId
+
+    } catch (error) {
+        console.error('Error fetching current loans:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+// get all loans
+app.post('/cancelCredit', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid customer id' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT account_no FROM accounts WHERE customer_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No accounts for this customer.' });
+                return;
+            }
+            acc_id=Number(acc.rows[0]);
+            const result = await connection.execute(
+                `SELECT card_no
+                FROM credit_cards
+                WHERE account_no = :acc_id`,
+                [acc_id]
+            );
+            const card_num=Number(result.rows[0]);
+            //approve the loan
+            await connection.execute(
+                `BEGIN
+                    DeleteCreditCard(:card_num);
+                END;`,
+                {
+                    card_num:card_num
+                }
+            );
+            const mes="Sucessfully deleted credit card";
+            console.log(mes);
+            connection.execute(`commit`);
+            res.json({ success: true, message: mes });
+
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+        // Implement your logic to fetch current loans for the user from the database
+        // You can perform a SELECT query based on the userId
+
+    } catch (error) {
+        console.error('Error fetching current loans:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+
+
+app.get('/withdrawal-history-all', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId } = req.query;
+        console.log(req.body);
+        // Validate the incoming data
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid Transaction request.' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT Job_Title FROM Employees WHERE employee_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Target Role: "+String(acc.rows[0]));
+            acc_id=String(acc.rows[0]);
+            //see job permissions
+            const acc2 = await connection.execute(
+                `SELECT Transfer_Perm FROM Job_Roles WHERE Job_Title = :acc_id`,
+                { acc_id }
+            );
+            if (acc2.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Transfer perm: "+String(acc2.rows[0]));
+            if (Number(acc2.rows[0])==0){
+                console.log("Insufficient permissions");
+                res.json('Insufficient Permissions');
+            }
+            else{
+                //get all transactions
+                const transfer_list = await connection.execute(
+                    `SELECT * FROM withdrawals`
+                );
+                console.log(transfer_list.rows[0]);
+                res.json(transfer_list.rows);
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Error get all transactions:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+// approve loan
+app.post('/approve-loan', async (req, res) => {
+    try {
+        const { userId,loanAmount } = req.body;
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid employeeid for loans' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT Job_Title FROM Employees WHERE employee_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Target Role: "+String(acc.rows[0]));
+            acc_id=String(acc.rows[0]);
+            //see job permissions
+            const acc2 = await connection.execute(
+                `SELECT Loan_perm FROM Job_Roles WHERE Job_Title = :acc_id`,
+                { acc_id }
+            );
+            if (acc2.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Loans perm: "+String(acc2.rows[0]));
+            if (Number(acc2.rows[0])==0){
+                console.log("Insufficient permissions");
+                res.json('Insufficient Permissions');
+            }
+            else{
+                //approve the loan
+                await connection.execute(
+                    `BEGIN
+                        ApproveLoan(:loanAmount);
+                     END;`,
+                    {
+                        loanAmount:loanAmount
+                    }
+                );
+                const mes="Sucessfully approved for a loan of id"+ String(loanAmount);
+                console.log(mes);
+                connection.execute(`commit`);
+                res.json({ success: true, message: mes });
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+        // Implement your logic to fetch current loans for the user from the database
+        // You can perform a SELECT query based on the userId
+
+    } catch (error) {
+        console.error('Error fetching current loans:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+
+
+
+
+// get all loans
+app.post('/getloans-all', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid employeeid for loans' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT Job_Title FROM Employees WHERE employee_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Target Role: "+String(acc.rows[0]));
+            acc_id=String(acc.rows[0]);
+            //see job permissions
+            const acc2 = await connection.execute(
+                `SELECT Loan_perm FROM Job_Roles WHERE Job_Title = :acc_id`,
+                { acc_id }
+            );
+            if (acc2.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Loans perm: "+String(acc2.rows[0]));
+            if (Number(acc2.rows[0])==0){
+                console.log("Insufficient permissions");
+                res.json('Insufficient Permissions');
+            }
+            else{
+                //get all loans
+                const loan_list = await connection.execute(
+                    `SELECT * FROM loans`
+                );
+                console.log(loan_list.rows[0]);
+                res.json(loan_list.rows);
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+        // Implement your logic to fetch current loans for the user from the database
+        // You can perform a SELECT query based on the userId
+
+    } catch (error) {
+        console.error('Error fetching current loans:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+
+
+
+app.get('/transaction-history-all', async (req, res) => {
+    try {
+        // Extract data from the request body
+        const { userId } = req.query;
+        console.log(req.body);
+        // Validate the incoming data
+        if (!userId) {
+            res.status(400).json({ error: 'Invalid Transaction request.' });
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            // see which job title they have
+            const acc = await connection.execute(
+                `SELECT Job_Title FROM Employees WHERE employee_no = :userId`,
+                { userId }
+            );
+            if (acc.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Target Role: "+String(acc.rows[0]));
+            acc_id=String(acc.rows[0]);
+            //see job permissions
+            const acc2 = await connection.execute(
+                `SELECT Transfer_Perm FROM Job_Roles WHERE Job_Title = :acc_id`,
+                { acc_id }
+            );
+            if (acc2.rows.length === 0) {
+                res.status(404).json({ error: 'No account found.' });
+                return;
+            }
+            console.log("Transfer perm: "+String(acc2.rows[0]));
+            if (Number(acc2.rows[0])==0){
+                console.log("Insufficient permissions");
+                res.json('Insufficient Permissions');
+            }
+            else{
+                //get all transactions
+                const transfer_list = await connection.execute(
+                    `SELECT * FROM transfers`
+                );
+                console.log(transfer_list.rows[4]);
+                res.json(transfer_list.rows);
+            }
+        } finally {
+            if (connection) {
+                try {
+                    await connection.close();
+                } catch (err) {
+                    console.error('Error closing connection:', err.message);
+                }
+            }
+        }
+
+    } catch (error) {
+        console.error('Error get all transactions:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+
+
+app.post('/admin', async (req, res) => {
+    const { username, password } = req.body;
+
+    try {
+        // Connect to the Oracle Database
+        const connection = await oracledb.getConnection(dbConfig);
+
+        // Query the database for the provided username and password
+        const result = await connection.execute(
+            'SELECT Employee_No,Login_Password FROM Emp_Login_Info WHERE Employee_No = :username AND Login_Password = :password',
+            { username, password }
+        );
+        res.json({ message: 'Login successful', userID: username });
+        // Release the Oracle Database connection
+        await connection.close();
+    } catch (error) {
+        console.error('Error connecting to Oracle Database:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+
 // Endpoint to get credit card info
 app.get('/getCreditCard', async (req, res) => {
     try {
@@ -54,6 +479,7 @@ app.get('/getCreditCard', async (req, res) => {
         } else {
             res.json({}); // Empty response if no credit card info found
         }
+        await connection.close();
 
     } catch (error) {
       console.error('Error fetching credit card info:', error.message);
@@ -91,6 +517,7 @@ try {
     } else {
         res.json({}); // Empty response if no debit card info found
     }
+    await connection.close();
 
 } catch (error) {
     console.error('Error fetching debit card info:', error.message);
@@ -159,6 +586,7 @@ try {
     try {
         //get the account id of the customer
         connection = await oracledb.getConnection(dbConfig);
+
         const result = await connection.execute(
             `SELECT account_no,interest_rate FROM accounts WHERE customer_no = :userId`,
             { userId }
@@ -179,8 +607,8 @@ try {
         //add the loan into pending request
 
         await connection.execute(
-            `INSERT INTO Loans (loan_rate, initial_amount, account_no) VALUES (:interestRate, :acc_id, :loanAmount)`,
-            { interestRate, acc_id, loanAmount }
+            `INSERT INTO Loans (loan_rate, initial_amount, account_no) VALUES (:interestRate, :loanAmount, :acc_id,)`,
+            { interestRate, loanAmount, acc_id }
         );
 
         const mes="Sucessfully applied for a loan of "+ String(loanAmount)+ "for your account id "+String(acc_id)+" at a rate of "+String(interestRate);
@@ -343,6 +771,17 @@ app.post('/make-transaction', async (req, res) => {
                     res.status(404).json({ error: 'Account not found.' });
                     return;
                 }
+                await connection.execute(
+                    `BEGIN
+                        TransferMoney(:userId, :targetAccount, :amount);
+                     END;`,
+                    {
+                      userId: userId,
+                      targetAccount: targetAccount,
+                      amount: amount
+                    }
+                  );
+                /*
                 //reduce the senders balance
                 await connection.execute(
                     `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
@@ -375,9 +814,10 @@ app.post('/make-transaction', async (req, res) => {
                     `INSERT INTO transfers (send_account_no, dest_account_no, amount) VALUES (:send_account_no, :dest_account_no, :amount)`,
                     { send_account_no, dest_account_no, amount }
                 );
+                */
                 connection.execute(`commit`);
                 const mes="Transfer Successful. Remaining balance: "+String(currentBalance - Number(amount))
-                +"\nSent to account number "+String(dest_account_no);
+                +"\nSent to account number "+String(targetAccount);
                 console.log(mes);
                 res.json({ success: true, message: mes });
             }
@@ -439,9 +879,20 @@ app.post('/withdraw', async (req, res) => {
             else{
                 // Update the balance in the database
                 await connection.execute(
+                    `BEGIN
+                        WithdrawMoney(:userId, :amount);
+                     END;`,
+                    {
+                      userId: userId,
+                      amount: amount
+                    }
+                  );
+                /*
+                await connection.execute(
                     `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
                     { newBalance: currentBalance - Number(amount), userId }
                 );
+                */
                 //console.log('Current Balance:', currentBalance);
                 //console.log('Amount:', amount);
                 connection.execute(`commit`);
@@ -508,9 +959,20 @@ app.post('/deposit', async (req, res) => {
             console.log(currentBalance);
             // Update the balance in the database
             await connection.execute(
+                `BEGIN
+                    DepositMoney(:userId, :amount);
+                 END;`,
+                {
+                  userId: userId,
+                  amount: amount
+                }
+              );
+            /*
+            await connection.execute(
                 `UPDATE accounts SET balance = :newBalance WHERE customer_no = :userId`,
                 { newBalance: currentBalance + Number(amount), userId }
             );
+            */
             console.log('Current Balance:', currentBalance);
             console.log('Amount:', amount);
             connection.execute(`commit`);

@@ -98,3 +98,64 @@ function displayCardInfo(cardInfo, container) {
         container.appendChild(card_status);
     }
 }
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cancelCreditCardBtn = document.getElementById('cancelCreditCardBtn');
+    const cancelDebitCardBtn = document.getElementById('cancelDebitCardBtn');
+
+    // Add click event listener for canceling credit card
+    cancelCreditCardBtn.addEventListener('click', async () => {
+        try {
+            const userId = getUserIdFromCookie();
+            if (userId) {
+                await cancelCreditCard(userId);
+                // Optionally, you can update the UI or show a success message
+            }
+        } catch (error) {
+            console.error('Error canceling credit card:', error.message);
+        }
+    });
+
+    // Add click event listener for canceling debit card
+    cancelDebitCardBtn.addEventListener('click', async () => {
+        try {
+            const userId = getUserIdFromCookie();
+            if (userId) {
+                await cancelDebitCard(userId);
+                // Optionally, you can update the UI or show a success message
+            }
+        } catch (error) {
+            console.error('Error canceling debit card:', error.message);
+        }
+    });
+});
+
+async function cancelCreditCard(userId) {
+    // Make a POST request to cancel credit card
+    const response = await fetch('/cancelCredit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+    });
+    const data = await response.json();
+    // Handle the response as needed
+    console.log(data);
+}
+
+async function cancelDebitCard(userId) {
+    // Make a POST request to cancel debit card
+    const response = await fetch('/cancelDebit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+    });
+    const data = await response.json();
+    // Handle the response as needed
+    console.log(data);
+}

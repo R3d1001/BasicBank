@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         //loanamount = loanid
         // Validate and submit loan application
         if (userId && loanAmount) {
-            await submitLoanApproval(userId, loanAmount);
+            await submitLoanApplication(userId, loanAmount);
         }
     });
 
@@ -43,9 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 
-async function submitLoanApplication(userId, loanAmount) {
+async function submitLoanApplication(userId, loanAmount) {//loan amount=loadid
     try {
-        const response = await fetch('/loans', {
+        const response = await fetch('/approve-loan', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
